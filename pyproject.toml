@@ -6,6 +6,12 @@ authors = [
     { name = "Gareth Davidson", email = "gaz@bitplane.net" }
 ]
 readme = "README.md"
+license = "WTFPL"
+
+[project.urls]
+Homepage = "https://bitplane.net/dev/python/amigainfo"
+Repository = "https://github.com/bitplane/amigainfo"
+Issues = "https://github.com/bitplane/amigainfo/issues"
 requires-python = ">=3.10"
 
 dependencies = [
