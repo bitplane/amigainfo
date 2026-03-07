@@ -88,8 +88,8 @@ tool), and planar bitmap image data. Later formats append additional image data:
 |--------|-----|-----------|---------|
 | Classic | OS 1.x-3.1 | Planar bitmaps (1-8 bitplanes) | System Workbench palette |
 | NewIcons | Mid-90s | Chunky pixels encoded in ToolTypes | Embedded in data |
-| GlowIcons | OS 3.5+ | RLE-compressed indexed color (IFF) | Embedded in data |
-| ARGB | OS 4 | zlib-compressed 32-bit ARGB | Full color |
+| GlowIcons | OS 3.5+ | RLE-compressed indexed colour (IFF) | Embedded in data |
+| ARGB | OS 4 | zlib-compressed 32-bit ARGB | Full colour |
 
 Each file can contain up to two images: normal and selected (highlighted) states.
 
@@ -115,8 +115,8 @@ DiskObject
 Classic icons don't store palette data, they rely on the system Workbench
 palette. Two palettes are included:
 
-- `WB_1X` — OS 1.x, 4 colors (blue, white, black, orange)
-- `WB_2X` — OS 2.x/3.x, 8 colors (the standard Workbench palette)
+- `WB_1X` — OS 1.x, 4 colours (blue, white, black, orange)
+- `WB_2X` — OS 2.x/3.x, 8 colours (the standard Workbench palette)
 
 The default is `WB_2X`. The `to_image()` function auto-selects based on
 `gadget.user_data` (OS 2.x+ icons set this to 1).

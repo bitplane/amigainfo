@@ -1,5 +1,6 @@
 from .enums import GadgetActivation, GadgetFlag, IconType
 from .load import load
+from .save import save
 from .models import (
     ARGBImage,
     ARGBImages,
@@ -48,6 +49,7 @@ __all__ = [
     "classic_to_image",
     "coloricon_to_image",
     "load",
+    "save",
     "newicon_to_image",
     "to_image",
 ]

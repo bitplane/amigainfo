@@ -1,22 +1,22 @@
 [project]
 name = "amigainfo"
-description = "Load Amiga .info files"
-version = "0.2.0"
+description = "Load, save and export Amiga .info files"
+version = "0.3.0"
 authors = [
     { name = "Gareth Davidson", email = "gaz@bitplane.net" }
 ]
 readme = "README.md"
 license = "WTFPL"
-
-[project.urls]
-Homepage = "https://bitplane.net/dev/python/amigainfo"
-Repository = "https://github.com/bitplane/amigainfo"
-Issues = "https://github.com/bitplane/amigainfo/issues"
 requires-python = ">=3.10"
 
 dependencies = [
     "pillow>=12.1"
 ]
+
+[project.urls]
+Homepage = "https://bitplane.net/dev/python/amigainfo"
+Repository = "https://github.com/bitplane/amigainfo"
+Issues = "https://github.com/bitplane/amigainfo/issues"
 
 [project.optional-dependencies]
 dev = [
