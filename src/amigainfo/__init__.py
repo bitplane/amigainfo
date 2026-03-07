@@ -1,4 +1,5 @@
 from .enums import GadgetActivation, GadgetFlag, IconType
+from .load import load
 from .models import (
     ARGBImage,
     ARGBImages,
@@ -14,6 +15,7 @@ from .models import (
     NewIconImage,
     NewIconImages,
 )
+from .palettes import DEFAULT, WB_1X, WB_2X
 
 __all__ = [
     "ARGBImage",
@@ -22,6 +24,7 @@ __all__ = [
     "ClassicImages",
     "ColorIconImage",
     "ColorIconImages",
+    "DEFAULT",
     "DiskObject",
     "DrawerData",
     "FaceChunk",
@@ -32,4 +35,7 @@ __all__ = [
     "ImageHeader",
     "NewIconImage",
     "NewIconImages",
+    "WB_1X",
+    "WB_2X",
+    "load",
 ]

@@ -16,19 +16,32 @@ class Gadget:
     flags: int = 0
     activation: int = 0
     gadget_type: int = 0
+    gadget_render: int = 0
+    select_render: int = 0
     user_data: int = 0
 
 
 @dataclass
 class DrawerData:
-    """Drawer window state (NewWindow subset + scroll offsets)."""
+    """Drawer window state.
 
+    Contains NewWindow fields for the drawer window, scroll offsets,
+    and optional OS 2.x+ display flags (DrawerData2).
+    """
+
+    # NewWindow fields
     left_edge: int = 0
     top_edge: int = 0
     width: int = 0
     height: int = 0
+    detail_pen: int = 0xFF
+    block_pen: int = 0xFF
+
+    # Scroll offsets
     current_x: int = 0
     current_y: int = 0
+
+    # DrawerData2 (OS 2.x+ only, when ga_UserData & 0xFF == 1)
     flags: int = 0
     view_modes: int = 0
 
@@ -171,6 +184,7 @@ class DiskObject:
 
     # Metadata
     default_tool: str | None = None
+    tool_window: str | None = None
     tooltypes: list[str] = field(default_factory=list)
     current_x: int = 0
     current_y: int = 0
