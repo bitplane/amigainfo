@@ -4,10 +4,10 @@ A Python library for loading and converting Amiga `.info` icon files.
 
 Supports all four generations of the format:
 
-- **Classic** (OS 1.x-3.1) — planar bitmap icons
-- **NewIcons** — higher color icons encoded in ToolTypes strings
-- **GlowIcons / ColorIcons** (OS 3.5+) — IFF FORM ICON with RLE compression
-- **ARGB** (OS4) — 32-bit icons with zlib-compressed ARGB data
+* 🗺️ **Classic** (OS 1.x-3.1) — planar bitmap icons
+* 🖼️ **NewIcons** — higher colour icons encoded in ToolTypes strings
+* 🪟 **GlowIcons / ColorIcons** (OS 3.5+) — IFF FORM ICON with RLE compression
+* 📷 **ARGB** (OS4) — 32-bit icons with zlib-compressed ARGB data
 
 ## Install
 
@@ -112,7 +112,7 @@ DiskObject
 
 ## Default palettes
 
-Classic icons don't store palette data — they rely on the system Workbench
+Classic icons don't store palette data, they rely on the system Workbench
 palette. Two palettes are included:
 
 - `WB_1X` — OS 1.x, 4 colors (blue, white, black, orange)
