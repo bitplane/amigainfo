@@ -16,6 +16,13 @@ from .models import (
     NewIconImages,
 )
 from .palettes import DEFAULT, WB_1X, WB_2X
+from .render import (
+    argb_to_image,
+    classic_to_image,
+    coloricon_to_image,
+    newicon_to_image,
+    to_image,
+)
 
 __all__ = [
     "ARGBImage",
@@ -37,5 +44,10 @@ __all__ = [
     "NewIconImages",
     "WB_1X",
     "WB_2X",
+    "argb_to_image",
+    "classic_to_image",
+    "coloricon_to_image",
     "load",
+    "newicon_to_image",
+    "to_image",
 ]
