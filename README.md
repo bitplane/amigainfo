@@ -39,39 +39,39 @@ img = to_image(obj, selected=True)
 
 ## CLI
 
-Convert `.info` files to standard image formats:
+Inspect `.info` files (default):
+
+```bash
+# Human-readable summary (default action)
+amigainfo icon.info
+
+# Multiple files
+amigainfo *.info
+
+# JSON metadata
+amigainfo --json icon.info
+```
+
+Convert to PNG with `-o`:
 
 ```bash
 # Convert to PNG (picks the best available image format)
-amigainfo icon.info icon.png
+amigainfo -o icon.png icon.info
 
-# Output format follows the file extension
-amigainfo icon.info icon.webp
-
-# Batch convert (outputs alongside inputs as .png)
-amigainfo *.info
+# Batch convert to a directory
+amigainfo -o output_dir/ *.info
 
 # Use the selected (highlighted) icon state
-amigainfo --selected icon.info icon.png
+amigainfo -o icon.png --selected icon.info
 
 # Extract a specific format layer
-amigainfo --format classic icon.info icon.png
-amigainfo --format newicon icon.info icon.png
-amigainfo --format coloricon icon.info icon.png
-amigainfo --format argb icon.info icon.png
+amigainfo -o icon.png --format classic icon.info
+amigainfo -o icon.png --format newicon icon.info
+amigainfo -o icon.png --format coloricon icon.info
+amigainfo -o icon.png --format argb icon.info
 
 # Override the palette for classic icons
-amigainfo --palette wb1x icon.info icon.png
-```
-
-Inspect metadata:
-
-```bash
-# Human-readable summary
-amigainfo --info icon.info
-
-# JSON dump
-amigainfo --json icon.info
+amigainfo -o icon.png --format classic --palette wb1x icon.info
 ```
 
 ## Format overview
