@@ -1,6 +1,6 @@
 # amigainfo
 
-A Python library for loading and converting Amiga `.info` icon files.
+A Python library for loading, saving and converting Amiga `.info` icon files.
 
 Supports all four generations of the format:
 
@@ -18,7 +18,7 @@ pip install amigainfo
 ## Library usage
 
 ```python
-from amigainfo import load, to_image
+from amigainfo import load, save, to_image
 
 # Load and render the best available image
 obj = load(open("MyApp.info", "rb").read())
@@ -29,6 +29,11 @@ img.save("MyApp.png")
 print(obj.type)          # IconType.TOOL
 print(obj.default_tool)  # "SYS:Utilities/MultiView"
 print(obj.tooltypes)     # ["PUBSCREEN=Workbench", ...]
+
+# Modify and save back
+obj.default_tool = "SYS:Utilities/NewTool"
+obj.tooltypes.append("DONOTWAIT")
+open("MyApp.info", "wb").write(save(obj))
 
 # Render a specific format or state
 from amigainfo import classic_to_image, WB_1X
@@ -95,7 +100,8 @@ Each file can contain up to two images: normal and selected (highlighted) states
 
 ## Data model
 
-The `load()` function returns a `DiskObject` with all parsed data accessible:
+The `load()` function returns a `DiskObject` with all parsed data accessible.
+The `save()` function serializes it back to `.info` bytes:
 
 ```
 DiskObject
