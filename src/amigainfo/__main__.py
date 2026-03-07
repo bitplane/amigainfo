@@ -74,66 +74,77 @@ def _json_default(obj):
     raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
 
 
-def _convert_one(args, input_path: Path, output_path: Path | None):
-    """Process a single .info file."""
-    data = input_path.read_bytes()
-    obj = load(data)
+def _resolve_output_path(output: Path, input_path: Path) -> Path:
+    """Determine the output file path for conversion."""
+    if output.is_dir():
+        return output / input_path.with_suffix(".png").name
+    return output
 
-    if args.info:
-        print(f"--- {input_path} ---")
-        print(_info_text(obj))
-        return
 
+def _process_one(args, input_path: Path) -> bool:
+    """Process a single .info file. Returns True on success."""
+    try:
+        data = input_path.read_bytes()
+        obj = load(data)
+    except Exception as e:
+        print(f"Error: {input_path}: {e}", file=sys.stderr)
+        return False
+
+    # JSON mode
     if args.json:
         print(json.dumps(dataclasses.asdict(obj), indent=2, default=_json_default))
-        return
+        return True
 
-    # Render image
-    palette_map = {"wb1x": WB_1X, "wb2x": WB_2X}
+    # Conversion mode
+    if args.output:
+        output_path = _resolve_output_path(args.output, input_path)
+        palette_map = {"wb1x": WB_1X, "wb2x": WB_2X}
 
-    if args.format:
-        fmt = args.format
-        selected = args.selected
-        if fmt == "argb" and obj.argb:
-            src = obj.argb.selected if selected and obj.argb.selected else obj.argb.normal
-            img = argb_to_image(src)
-        elif fmt == "coloricon" and obj.coloricon:
-            src = obj.coloricon.selected if selected and obj.coloricon.selected else obj.coloricon.normal
-            img = coloricon_to_image(src)
-        elif fmt == "newicon" and obj.newicon:
-            src = obj.newicon.selected if selected and obj.newicon.selected else obj.newicon.normal
-            img = newicon_to_image(src)
-        elif fmt == "classic" and obj.classic:
-            src = obj.classic.selected if selected and obj.classic.selected else obj.classic.normal
-            palette = palette_map.get(args.palette) if args.palette else None
-            img = classic_to_image(src, palette)
-        else:
-            print(f"Error: format '{fmt}' not available in {input_path}", file=sys.stderr)
-            sys.exit(1)
-    else:
-        img = to_image(obj, selected=args.selected)
+        try:
+            if args.format:
+                fmt = args.format
+                selected = args.selected
+                if fmt == "argb" and obj.argb:
+                    src = obj.argb.selected if selected and obj.argb.selected else obj.argb.normal
+                    img = argb_to_image(src)
+                elif fmt == "coloricon" and obj.coloricon:
+                    src = obj.coloricon.selected if selected and obj.coloricon.selected else obj.coloricon.normal
+                    img = coloricon_to_image(src)
+                elif fmt == "newicon" and obj.newicon:
+                    src = obj.newicon.selected if selected and obj.newicon.selected else obj.newicon.normal
+                    img = newicon_to_image(src)
+                elif fmt == "classic" and obj.classic:
+                    src = obj.classic.selected if selected and obj.classic.selected else obj.classic.normal
+                    palette = palette_map.get(args.palette) if args.palette else None
+                    img = classic_to_image(src, palette)
+                else:
+                    print(f"Error: {input_path}: format '{fmt}' not available", file=sys.stderr)
+                    return False
+            else:
+                img = to_image(obj, selected=args.selected)
 
-    if output_path is None:
-        output_path = input_path.with_suffix(".png")
+            img.save(output_path)
+            print(f"{input_path} -> {output_path} ({img.size[0]}x{img.size[1]} {img.mode})", file=sys.stderr)
+            return True
+        except Exception as e:
+            print(f"Error: {input_path}: {e}", file=sys.stderr)
+            return False
 
-    img.save(output_path)
-    print(f"{input_path} -> {output_path} ({img.size[0]}x{img.size[1]} {img.mode})")
+    # Info mode (default)
+    if len(args.input) > 1:
+        print(f"--- {input_path} ---")
+    print(_info_text(obj))
+    return True
 
 
 def main():
     parser = argparse.ArgumentParser(
         prog="amigainfo",
-        description="Inspect and convert Amiga .info icon files.",
+        description="Inspect and convert Amiga .info icon files. Shows info by default.",
     )
     parser.add_argument("input", nargs="+", type=Path, help="Input .info file(s)")
-    parser.add_argument(
-        "output", nargs="?", type=Path, default=None, help="Output image file (default: input with .png)"
-    )
-
-    group = parser.add_mutually_exclusive_group()
-    group.add_argument("--info", action="store_true", help="Show human-readable metadata")
-    group.add_argument("--json", action="store_true", help="Dump metadata as JSON")
-
+    parser.add_argument("-o", "--output", type=Path, default=None, help="Output file or directory for conversion")
+    parser.add_argument("--json", action="store_true", help="Dump metadata as JSON")
     parser.add_argument("--selected", action="store_true", help="Use selected (highlighted) state")
     parser.add_argument(
         "--format",
@@ -148,22 +159,17 @@ def main():
 
     args = parser.parse_args()
 
-    # Handle the ambiguity: if last arg looks like an output file (not .info),
-    # treat it as the output rather than an input
-    if args.output is None and len(args.input) > 1:
-        last = args.input[-1]
-        if last.suffix.lower() != ".info":
-            args.output = last
-            args.input = args.input[:-1]
+    # Validate: -o with multiple inputs must be a directory
+    if args.output and len(args.input) > 1 and not args.output.is_dir():
+        print("Error: -o must be a directory when converting multiple files", file=sys.stderr)
+        sys.exit(1)
 
-    if len(args.input) == 1:
-        _convert_one(args, args.input[0], args.output)
-    else:
-        if args.output and not (args.info or args.json):
-            print("Error: cannot specify output file with multiple inputs", file=sys.stderr)
-            sys.exit(1)
-        for path in args.input:
-            _convert_one(args, path, None)
+    ok = True
+    for path in args.input:
+        if not _process_one(args, path):
+            ok = False
+
+    sys.exit(0 if ok else 1)
 
 
 if __name__ == "__main__":
