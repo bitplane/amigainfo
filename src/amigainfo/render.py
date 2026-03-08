@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import io
+
 from PIL import Image
 
 from .models import (
@@ -30,6 +32,10 @@ def to_image(obj: DiskObject, selected: bool = False) -> Image.Image:
     Raises:
         ValueError: If no image data is available.
     """
+    if obj.png:
+        png_data = obj.png.selected if selected and obj.png.selected else obj.png.normal
+        return png_to_image(png_data)
+
     if obj.argb:
         img = obj.argb.selected if selected and obj.argb.selected else obj.argb.normal
         return argb_to_image(img)
@@ -48,6 +54,11 @@ def to_image(obj: DiskObject, selected: bool = False) -> Image.Image:
         return classic_to_image(img, palette)
 
     raise ValueError("No image data available in DiskObject")
+
+
+def png_to_image(data: bytes) -> Image.Image:
+    """Render a PNG icon image to a Pillow RGBA Image."""
+    return Image.open(io.BytesIO(data)).convert("RGBA")
 
 
 def argb_to_image(img: ARGBImage) -> Image.Image:

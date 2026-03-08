@@ -15,6 +15,7 @@ from .render import (
     classic_to_image,
     coloricon_to_image,
     newicon_to_image,
+    png_to_image,
     to_image,
 )
 
@@ -48,6 +49,9 @@ def _info_text(obj) -> str:
         a = obj.argb.normal
         has_sel = obj.argb.selected is not None
         formats.append(f"argb ({a.width}x{a.height}, selected={has_sel})")
+    if obj.png:
+        has_sel = obj.png.selected is not None
+        formats.append(f"png ({obj.gadget.width}x{obj.gadget.height}, selected={has_sel})")
 
     lines.append("Formats:    " + ", ".join(formats) if formats else "Formats:    none")
 
@@ -104,7 +108,10 @@ def _process_one(args, input_path: Path) -> bool:
             if args.format:
                 fmt = args.format
                 selected = args.selected
-                if fmt == "argb" and obj.argb:
+                if fmt == "png" and obj.png:
+                    src = obj.png.selected if selected and obj.png.selected else obj.png.normal
+                    img = png_to_image(src)
+                elif fmt == "argb" and obj.argb:
                     src = obj.argb.selected if selected and obj.argb.selected else obj.argb.normal
                     img = argb_to_image(src)
                 elif fmt == "coloricon" and obj.coloricon:
@@ -148,7 +155,7 @@ def main():
     parser.add_argument("--selected", action="store_true", help="Use selected (highlighted) state")
     parser.add_argument(
         "--format",
-        choices=["classic", "newicon", "coloricon", "argb"],
+        choices=["classic", "newicon", "coloricon", "argb", "png"],
         help="Extract a specific image format layer",
     )
     parser.add_argument(

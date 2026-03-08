@@ -20,6 +20,7 @@ from .models import (
     ImageHeader,
     NewIconImage,
     NewIconImages,
+    PNGImages,
 )
 
 MAGIC = 0xE310
@@ -37,6 +38,9 @@ def load(data: bytes | bytearray) -> DiskObject:
     Raises:
         ValueError: If the file doesn't start with the expected magic number.
     """
+    if len(data) >= 4 and data[:4] == b"\x89PNG":
+        return _load_png_icon(data)
+
     data = memoryview(data) if not isinstance(data, memoryview) else data
     pos = 0
 
@@ -558,3 +562,123 @@ def _read_argb_chunk(data: memoryview, pos: int, chunk_size: int, width: int, he
         return None
 
     return ARGBImage(width=width, height=height, data=raw)
+
+
+# --- OS4 PNG icon ---
+
+# icOn chunk attribute tags
+_ICON_ATTR = {
+    0x80001001: "current_x",
+    0x80001002: "current_y",
+    0x80001003: "dd_left_edge",
+    0x80001004: "dd_top_edge",
+    0x80001005: "dd_width",
+    0x80001006: "dd_height",
+    0x80001007: "dd_flags",
+    0x80001008: "tool_window",
+    0x80001009: "stack_size",
+    0x8000100A: "default_tool",
+    0x8000100B: "tooltypes",
+    0x8000100C: "dd_view_modes",
+    0x8000100D: "dd_current_x",
+    0x8000100E: "dd_current_y",
+    0x8000100F: "type",
+}
+
+_ICON_STRING_ATTRS = {"tool_window", "default_tool", "tooltypes"}
+
+
+def _parse_icon_chunk(chunk_data: bytes) -> dict:
+    """Parse attribute tags from an icOn PNG chunk."""
+    attrs: dict = {}
+    pos = 0
+    while pos + 8 <= len(chunk_data):
+        tag = struct.unpack_from(">I", chunk_data, pos)[0]
+        pos += 4
+        name = _ICON_ATTR.get(tag)
+        if name is None:
+            break
+        if name in _ICON_STRING_ATTRS:
+            end = chunk_data.index(b"\x00", pos)
+            value = chunk_data[pos:end].decode("latin-1")
+            pos = end + 1
+            if name == "tooltypes":
+                attrs.setdefault("tooltypes", []).append(value)
+            else:
+                attrs[name] = value
+        else:
+            value = struct.unpack_from(">I", chunk_data, pos)[0]
+            pos += 4
+            attrs[name] = value
+    return attrs
+
+
+def _load_png_icon(data: bytes | bytearray) -> DiskObject:
+    """Load an OS4 PNG icon (two concatenated PNGs with icOn metadata chunk)."""
+    # Read width/height from IHDR (always at offset 8)
+    width, height = struct.unpack_from(">II", data, 16)
+
+    # Walk PNG chunks to find icOn and IEND
+    icon_attrs: dict = {}
+    iend_end = len(data)
+    pos = 8  # skip PNG signature
+    while pos + 8 <= len(data):
+        chunk_len = struct.unpack_from(">I", data, pos)[0]
+        chunk_type = data[pos + 4 : pos + 8]
+        chunk_data_start = pos + 8
+        chunk_end = chunk_data_start + chunk_len + 4  # +4 for CRC
+
+        if chunk_type == b"icOn":
+            icon_attrs = _parse_icon_chunk(data[chunk_data_start : chunk_data_start + chunk_len])
+
+        if chunk_type == b"IEND":
+            iend_end = chunk_end
+            break
+
+        pos = chunk_end
+
+    # Split into first and second PNG
+    first_png = bytes(data[:iend_end])
+    remainder = bytes(data[iend_end:])
+    second_png = remainder if remainder and remainder[:4] == b"\x89PNG" else None
+
+    # Build DiskObject from icOn attributes
+    icon_type_raw = icon_attrs.get("type", IconType.TOOL)
+    icon_type = IconType(icon_type_raw) if icon_type_raw in IconType.__members__.values() else icon_type_raw
+
+    drawer_data = None
+    dd_keys = {
+        "dd_left_edge",
+        "dd_top_edge",
+        "dd_width",
+        "dd_height",
+        "dd_flags",
+        "dd_view_modes",
+        "dd_current_x",
+        "dd_current_y",
+    }
+    if dd_keys & icon_attrs.keys():
+        drawer_data = DrawerData(
+            left_edge=icon_attrs.get("dd_left_edge", 0),
+            top_edge=icon_attrs.get("dd_top_edge", 0),
+            width=icon_attrs.get("dd_width", 0),
+            height=icon_attrs.get("dd_height", 0),
+            flags=icon_attrs.get("dd_flags", 0),
+            view_modes=icon_attrs.get("dd_view_modes", 0),
+            current_x=icon_attrs.get("dd_current_x", 0),
+            current_y=icon_attrs.get("dd_current_y", 0),
+        )
+
+    return DiskObject(
+        magic=0x89504E47,
+        type=icon_type,
+        gadget=Gadget(width=width, height=height),
+        default_tool=icon_attrs.get("default_tool"),
+        tool_window=icon_attrs.get("tool_window"),
+        tooltypes=icon_attrs.get("tooltypes", []),
+        current_x=icon_attrs.get("current_x", 0),
+        current_y=icon_attrs.get("current_y", 0),
+        stack_size=icon_attrs.get("stack_size", 0),
+        drawer_data=drawer_data,
+        png=PNGImages(normal=first_png, selected=second_png),
+    )

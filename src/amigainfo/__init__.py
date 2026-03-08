@@ -15,6 +15,7 @@ from .models import (
     ImageHeader,
     NewIconImage,
     NewIconImages,
+    PNGImages,
 )
 from .palettes import DEFAULT, WB_1X, WB_2X
 from .render import (
@@ -22,6 +23,7 @@ from .render import (
     classic_to_image,
     coloricon_to_image,
     newicon_to_image,
+    png_to_image,
     to_image,
 )
 
@@ -43,6 +45,7 @@ __all__ = [
     "ImageHeader",
     "NewIconImage",
     "NewIconImages",
+    "PNGImages",
     "WB_1X",
     "WB_2X",
     "argb_to_image",
@@ -51,5 +54,6 @@ __all__ = [
     "load",
     "save",
     "newicon_to_image",
+    "png_to_image",
     "to_image",
 ]

@@ -26,15 +26,18 @@ def loaded_icon(request):
 
 def test_loads_without_error(loaded_icon):
     obj, path = loaded_icon
-    assert obj.magic == 0xE310
-    assert obj.version == 1
+    assert obj.magic in (0xE310, 0x89504E47)
 
 
-def test_has_classic_images(loaded_icon):
+def test_has_image_data(loaded_icon):
     obj, _ = loaded_icon
-    assert obj.classic is not None
-    assert obj.classic.normal is not None
-    assert len(obj.classic.normal.planes) == obj.classic.normal.header.depth
+    if obj.magic == 0xE310:
+        assert obj.classic is not None
+        assert obj.classic.normal is not None
+        assert len(obj.classic.normal.planes) == obj.classic.normal.header.depth
+    else:
+        assert obj.png is not None
+        assert len(obj.png.normal) > 0
 
 
 # --- Specific file tests ---
@@ -188,6 +191,49 @@ def test_selected_image_when_present():
     assert obj.gadget.select_render != 0
     assert obj.classic.selected is not None
     assert obj.classic.selected.header.depth == obj.classic.normal.header.depth
+
+
+def test_png_icon_loads():
+    obj = load_file("PNG/def_DF0.info")
+    assert obj.magic == 0x89504E47
+    assert obj.png is not None
+    assert len(obj.png.normal) > 0
+
+
+def test_png_icon_has_selected():
+    obj = load_file("PNG/def_DF0.info")
+    assert obj.png.selected is not None
+    assert len(obj.png.selected) > 0
+
+
+def test_png_icon_dimensions():
+    obj = load_file("PNG/def_DF0.info")
+    assert obj.gadget.width == 48
+    assert obj.gadget.height == 48
+
+
+def test_png_icon_metadata():
+    obj = load_file("PNG/def_DF0.info")
+    assert obj.stack_size == 30000
+    assert obj.current_x == 16
+    assert obj.current_y == 136
+
+
+def test_png_icon_drawer_data():
+    obj = load_file("PNG/def_DF0.info")
+    assert obj.drawer_data is not None
+    assert obj.drawer_data.left_edge == 20
+    assert obj.drawer_data.top_edge == 20
+    assert obj.drawer_data.width == 600
+    assert obj.drawer_data.height == 199
+
+
+def test_png_icon_no_classic():
+    obj = load_file("PNG/def_DF0.info")
+    assert obj.classic is None
+    assert obj.newicon is None
+    assert obj.coloricon is None
+    assert obj.argb is None
 
 
 def test_invalid_magic():

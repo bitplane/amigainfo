@@ -9,6 +9,7 @@ from amigainfo.render import (
     classic_to_image,
     coloricon_to_image,
     newicon_to_image,
+    png_to_image,
     to_image,
 )
 from amigainfo.palettes import WB_1X, WB_2X
@@ -162,6 +163,28 @@ def test_to_image_selected_fallback():
     # Even if selected is requested, should work (falls back to normal if no selected)
     img = to_image(obj, selected=True)
     assert isinstance(img, Image.Image)
+
+
+def test_png_renders_rgba():
+    obj = load_file("PNG/def_DF0.info")
+    img = png_to_image(obj.png.normal)
+    assert img.mode == "RGBA"
+    assert img.size == (48, 48)
+
+
+def test_png_selected_renders():
+    obj = load_file("PNG/def_DF0.info")
+    img = png_to_image(obj.png.selected)
+    assert img.mode == "RGBA"
+    assert img.size == (48, 48)
+
+
+def test_to_image_prefers_png():
+    obj = load_file("PNG/def_DF0.info")
+    assert obj.png is not None
+    img = to_image(obj)
+    assert img.mode == "RGBA"
+    assert img.size == (48, 48)
 
 
 def test_to_image_no_data_raises():

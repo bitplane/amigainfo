@@ -161,6 +161,14 @@ class ARGBImages:
 
 
 @dataclass
+class PNGImages:
+    """OS4 PNG icon images. Two concatenated PNG files."""
+
+    normal: bytes = b""
+    selected: bytes | None = None
+
+
+@dataclass
 class DiskObject:
     """Top-level Amiga .info file structure.
 
@@ -196,3 +204,4 @@ class DiskObject:
     newicon: NewIconImages | None = None
     coloricon: ColorIconImages | None = None
     argb: ARGBImages | None = None
+    png: PNGImages | None = None
