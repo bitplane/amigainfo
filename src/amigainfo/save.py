@@ -177,35 +177,32 @@ def _encode_newicon_image(img: NewIconImage) -> list[str]:
     colors_hi = chr((num_colors >> 6) + 0x21)
     colors_lo = chr((num_colors & 0x3F) + 0x21)
 
-    # Encode palette as bits
-    palette_bits: list[int] = []
-    for r, g, b in img.palette:
-        for val in (r, g, b):
-            for i in range(7, -1, -1):
-                palette_bits.append((val >> i) & 1)
-
-    palette_encoded = _newicon_encode_bits(palette_bits)
-    first_line = transparent_char + width_char + height_char + colors_hi + colors_lo + palette_encoded
-
-    lines = [first_line]
-
     # Bit depth for pixel data
     bit_depth = 1
     while (1 << bit_depth) < num_colors:
         bit_depth += 1
 
-    # Split pixel data into lines, each line encodes whole pixels only.
-    # The decoder processes each line independently and discards remainder bits.
-    max_chars = 128
-    pixels_per_line = (max_chars * 7) // bit_depth
+    # Encode palette + pixel data as one continuous bitstream.
+    # The decoder concatenates all lines into a single bitstream, so we must not
+    # introduce padding bits between palette and pixels or between lines.
+    all_bits: list[int] = []
+    for r, g, b in img.palette:
+        for val in (r, g, b):
+            for i in range(7, -1, -1):
+                all_bits.append((val >> i) & 1)
+    for px in img.pixel_data:
+        for i in range(bit_depth - 1, -1, -1):
+            all_bits.append((px >> i) & 1)
 
-    for offset in range(0, len(img.pixel_data), pixels_per_line):
-        chunk = img.pixel_data[offset : offset + pixels_per_line]
-        pixel_bits: list[int] = []
-        for px in chunk:
-            for i in range(bit_depth - 1, -1, -1):
-                pixel_bits.append((px >> i) & 1)
-        lines.append(_newicon_encode_bits(pixel_bits))
+    all_chars = _newicon_encode_bits(all_bits)
+    header = transparent_char + width_char + height_char + colors_hi + colors_lo
+
+    lines = []
+    max_data = 128 - len(header)
+    lines.append(header + all_chars[:max_data])
+    remaining = all_chars[max_data:]
+    for i in range(0, len(remaining), 128):
+        lines.append(remaining[i : i + 128])
 
     return lines
 
