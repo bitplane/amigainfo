@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import struct
 import zlib
 
@@ -22,6 +23,8 @@ from .models import (
     NewIconImages,
     PNGImages,
 )
+
+logger = logging.getLogger(__name__)
 
 MAGIC = 0xE310
 
@@ -83,17 +86,17 @@ def load(data: bytes | bytearray) -> DiskObject:
 
     # DefaultTool
     default_tool = None
-    if has_default_tool:
+    if has_default_tool and pos < len(data):
         default_tool, pos = _read_text(data, pos)
 
     # ToolTypes
     tooltypes: list[str] = []
-    if has_tooltypes:
+    if has_tooltypes and pos < len(data):
         tooltypes, pos = _read_tooltypes(data, pos)
 
     # ToolWindow
     tool_window = None
-    if has_tool_window:
+    if has_tool_window and pos < len(data):
         tool_window, pos = _read_text(data, pos)
 
     # DrawerData2 (OS 2.x+)
@@ -196,8 +199,12 @@ def _read_drawer_data(data: memoryview, pos: int, user_data: int) -> tuple[Drawe
     ), pos + 56
 
 
-def _read_classic_image(data: memoryview, pos: int) -> tuple[ClassicImage, int]:
+def _read_classic_image(data: memoryview, pos: int) -> tuple[ClassicImage | None, int]:
     """Read an Image header (20 bytes) and its planar bitmap data."""
+    if pos + 20 > len(data):
+        logger.warning("truncated image header at offset %d", pos)
+        return None, len(data)
+
     (
         left_edge,
         top_edge,
@@ -210,6 +217,10 @@ def _read_classic_image(data: memoryview, pos: int) -> tuple[ClassicImage, int]:
         _next,
     ) = struct.unpack_from(">hhhhhIBBI", data, pos)
     pos += 20
+
+    if width <= 0 or height <= 0 or depth <= 0 or depth > 8:
+        logger.warning("invalid image dimensions %dx%d depth=%d", width, height, depth)
+        return None, pos
 
     header = ImageHeader(
         left_edge=left_edge,
@@ -226,6 +237,12 @@ def _read_classic_image(data: memoryview, pos: int) -> tuple[ClassicImage, int]:
     bytes_per_row = words_per_row * 2
     plane_size = bytes_per_row * height
 
+    if pos + plane_size * depth > len(data):
+        logger.warning(
+            "truncated image plane data at offset %d (need %d bytes, have %d)", pos, plane_size * depth, len(data) - pos
+        )
+        return None, len(data)
+
     planes = []
     for _ in range(depth):
         plane_bytes = bytes(data[pos : pos + plane_size])
@@ -235,10 +252,19 @@ def _read_classic_image(data: memoryview, pos: int) -> tuple[ClassicImage, int]:
     return ClassicImage(header=header, planes=planes), pos
 
 
-def _read_text(data: memoryview, pos: int) -> tuple[str, int]:
+def _read_text(data: memoryview, pos: int) -> tuple[str | None, int]:
     """Read a length-prefixed string (ULONG size + text + zero byte)."""
+    if pos + 4 > len(data):
+        logger.warning("truncated string length at offset %d", pos)
+        return None, len(data)
+
     (length,) = struct.unpack_from(">I", data, pos)
     pos += 4
+
+    if length > len(data) - pos:
+        logger.warning("truncated string data at offset %d (need %d bytes, have %d)", pos, length, len(data) - pos)
+        return None, len(data)
+
     text = bytes(data[pos : pos + length]).rstrip(b"\x00").decode("latin-1")
     pos += length
     return text, pos
@@ -250,6 +276,10 @@ def _read_tooltypes(data: memoryview, pos: int) -> tuple[list[str], int]:
     Format: ULONG count_field (where entries = count_field/4 - 1),
     followed by that many length-prefixed strings.
     """
+    if pos + 4 > len(data):
+        logger.warning("truncated tooltypes count at offset %d", pos)
+        return [], len(data)
+
     (count_field,) = struct.unpack_from(">I", data, pos)
     pos += 4
 
@@ -258,6 +288,8 @@ def _read_tooltypes(data: memoryview, pos: int) -> tuple[list[str], int]:
         num_entries = count_field // 4 - 1
         for _ in range(num_entries):
             text, pos = _read_text(data, pos)
+            if text is None:
+                break
             tooltypes.append(text)
 
     return tooltypes, pos
