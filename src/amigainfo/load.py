@@ -330,40 +330,38 @@ def _decode_newicon_image(lines: list[str]) -> NewIconImage:
     while (1 << bit_depth) < num_colors:
         bit_depth += 1
 
-    # Decode the palette from the remainder of the first line
-    palette_data = first_line[5:]
-    palette_bits = _newicon_decode_bits(palette_data)
+    # Decode all lines into one continuous bitstream (palette then pixels)
+    all_bits: list[int] = []
+    all_bits.extend(_newicon_decode_bits(first_line[5:]))
+    for line in lines[1:]:
+        all_bits.extend(_newicon_decode_bits(line))
 
-    palette: list[tuple[int, int, int]] = []
     bit_pos = 0
+
+    # Read palette (num_colors * 24 bits)
+    palette: list[tuple[int, int, int]] = []
     for _ in range(num_colors):
-        if bit_pos + 24 > len(palette_bits):
+        if bit_pos + 24 > len(all_bits):
             break
-        r = _bits_to_int(palette_bits, bit_pos, 8)
-        g = _bits_to_int(palette_bits, bit_pos + 8, 8)
-        b = _bits_to_int(palette_bits, bit_pos + 16, 8)
+        r = _bits_to_int(all_bits, bit_pos, 8)
+        g = _bits_to_int(all_bits, bit_pos + 8, 8)
+        b = _bits_to_int(all_bits, bit_pos + 16, 8)
         palette.append((r, g, b))
         bit_pos += 24
 
-    # Decode pixel data from subsequent lines
-    pixels: list[int] = []
-    for line in lines[1:]:
-        line_bits = _newicon_decode_bits(line)
-        bit_pos = 0
-        while bit_pos + bit_depth <= len(line_bits):
-            pixels.append(_bits_to_int(line_bits, bit_pos, bit_depth))
-            bit_pos += bit_depth
-
-    # Truncate to actual image size
+    # Read pixel data from remaining bits
     total_pixels = width * height
-    pixels = pixels[:total_pixels]
+    pixels: list[int] = []
+    while (bit_pos + bit_depth <= len(all_bits)) and (len(pixels) < total_pixels):
+        pixels.append(_bits_to_int(all_bits, bit_pos, bit_depth))
+        bit_pos += bit_depth
 
     return NewIconImage(
         width=width,
         height=height,
         transparent=transparent,
         palette=palette,
-        pixel_data=bytes(pixels),
+        pixel_data=pixels,
     )
 
 
@@ -495,7 +493,7 @@ def _read_imag_chunk(data: memoryview, pos: int, width: int, height: int) -> Col
         has_transparent=has_transparent,
         depth=depth,
         palette=palette,
-        pixel_data=bytes(pixels),
+        pixel_data=pixels,
     )
 
 

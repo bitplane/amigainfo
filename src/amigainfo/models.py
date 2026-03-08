@@ -91,7 +91,7 @@ class NewIconImage:
     height: int = 0
     transparent: bool = False
     palette: list[tuple[int, int, int]] = field(default_factory=list)
-    pixel_data: bytes = b""
+    pixel_data: list[int] = field(default_factory=list)
 
 
 @dataclass
@@ -128,7 +128,7 @@ class ColorIconImage:
     has_transparent: bool = False
     depth: int = 0
     palette: list[tuple[int, int, int]] = field(default_factory=list)
-    pixel_data: bytes = b""
+    pixel_data: list[int] = field(default_factory=list)
 
 
 @dataclass
