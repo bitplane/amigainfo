@@ -2,12 +2,13 @@
 
 A Python library for loading, saving and converting Amiga `.info` icon files.
 
-Supports all four generations of the format:
+Supports all five generations of the format:
 
 * 🗺️ **Classic** (OS 1.x-3.1) — planar bitmap icons
 * 🖼️ **NewIcons** — higher colour icons encoded in ToolTypes strings
 * 🪟 **GlowIcons / ColorIcons** (OS 3.5+) — IFF FORM ICON with RLE compression
 * 📷 **ARGB** (OS4) — 32-bit icons with zlib-compressed ARGB data
+* 🖼️ **PNG** (OS4) — two concatenated PNG files with metadata in an `icOn` chunk
 
 ## Install
 
@@ -74,6 +75,7 @@ amigainfo -o icon.png --format classic icon.info
 amigainfo -o icon.png --format newicon icon.info
 amigainfo -o icon.png --format coloricon icon.info
 amigainfo -o icon.png --format argb icon.info
+amigainfo -o icon.png --format png icon.info
 
 # Override the palette for classic icons
 amigainfo -o icon.png --format classic --palette wb1x icon.info
@@ -95,6 +97,12 @@ tool), and planar bitmap image data. Later formats append additional image data:
 | NewIcons | Mid-90s | Chunky pixels encoded in ToolTypes | Embedded in data |
 | GlowIcons | OS 3.5+ | RLE-compressed indexed colour (IFF) | Embedded in data |
 | ARGB | OS 4 | zlib-compressed 32-bit ARGB | Full colour |
+| PNG | OS 4 | Two concatenated PNGs | Full colour |
+
+OS4 PNG icons are a separate format — the file starts with PNG magic (`0x89504E47`)
+instead of `0xE310`. Two complete PNG images are concatenated back-to-back
+(normal + selected state), and icon metadata is stored in a custom `icOn` PNG chunk
+in the first image.
 
 Each file can contain up to two images: normal and selected (highlighted) states.
 
@@ -113,7 +121,8 @@ DiskObject
 ├── classic (ClassicImages: normal/selected planar bitmaps)
 ├── newicon (NewIconImages: normal/selected palette+pixels)
 ├── coloricon (ColorIconImages: FACE chunk + normal/selected IMAG)
-└── argb (ARGBImages: normal/selected 32-bit image data)
+├── argb (ARGBImages: normal/selected 32-bit image data)
+└── png (PNGImages: normal/selected raw PNG bytes)
 ```
 
 ## Default palettes
