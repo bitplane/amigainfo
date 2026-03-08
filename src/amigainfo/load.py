@@ -645,6 +645,20 @@ def _parse_icon_chunk(chunk_data: bytes) -> dict:
     return attrs
 
 
+def _strip_png_chunk(png_data: bytes, chunk_type: bytes) -> bytes:
+    """Remove all instances of a chunk type from PNG data."""
+    parts = [png_data[:8]]
+    pos = 8
+    while pos + 8 <= len(png_data):
+        chunk_len = struct.unpack_from(">I", png_data, pos)[0]
+        ct = png_data[pos + 4 : pos + 8]
+        chunk_end = pos + 8 + chunk_len + 4
+        if ct != chunk_type:
+            parts.append(png_data[pos:chunk_end])
+        pos = chunk_end
+    return b"".join(parts)
+
+
 def _load_png_icon(data: bytes | bytearray) -> DiskObject:
     """Load an OS4 PNG icon (two concatenated PNGs with icOn metadata chunk)."""
     # Read width/height from IHDR (always at offset 8)
@@ -669,8 +683,9 @@ def _load_png_icon(data: bytes | bytearray) -> DiskObject:
 
         pos = chunk_end
 
-    # Split into first and second PNG
-    first_png = bytes(data[:iend_end])
+    # Split into first and second PNG, stripping icOn chunk from stored data
+    # (metadata is already extracted into DiskObject fields)
+    first_png = _strip_png_chunk(bytes(data[:iend_end]), b"icOn")
     remainder = bytes(data[iend_end:])
     second_png = remainder if remainder and remainder[:4] == b"\x89PNG" else None
 

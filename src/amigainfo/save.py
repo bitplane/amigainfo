@@ -29,6 +29,9 @@ def save(obj: DiskObject) -> bytes:
     Returns:
         Raw bytes of the .info file.
     """
+    if obj.png:
+        return _save_png_icon(obj)
+
     parts: list[bytes] = []
 
     # Merge NewIcon data into tooltypes
@@ -297,4 +300,118 @@ def _write_argb_chunk(img) -> bytes:
     result = b"ARGB" + struct.pack(">I", len(chunk_data)) + chunk_data
     if len(chunk_data) % 2:
         result += b"\x00"
+    return result
+
+
+# --- OS4 PNG icon ---
+
+# Reverse mapping of attribute names to icOn chunk tags
+_ICON_TAG = {
+    "current_x": 0x80001001,
+    "current_y": 0x80001002,
+    "dd_left_edge": 0x80001003,
+    "dd_top_edge": 0x80001004,
+    "dd_width": 0x80001005,
+    "dd_height": 0x80001006,
+    "dd_flags": 0x80001007,
+    "tool_window": 0x80001008,
+    "stack_size": 0x80001009,
+    "default_tool": 0x8000100A,
+    "tooltypes": 0x8000100B,
+    "dd_view_modes": 0x8000100C,
+    "dd_current_x": 0x8000100D,
+    "dd_current_y": 0x8000100E,
+    "type": 0x8000100F,
+}
+
+_ICON_STRING_TAGS = {"tool_window", "default_tool", "tooltypes"}
+
+
+def _build_icon_chunk(obj: DiskObject) -> bytes:
+    """Build the icOn PNG chunk data from DiskObject metadata."""
+    parts: list[bytes] = []
+
+    attrs: list[tuple[str, int | str]] = [
+        ("type", int(obj.type)),
+        ("current_x", obj.current_x),
+        ("current_y", obj.current_y),
+        ("stack_size", obj.stack_size),
+    ]
+    if obj.default_tool is not None:
+        attrs.append(("default_tool", obj.default_tool))
+    if obj.tool_window is not None:
+        attrs.append(("tool_window", obj.tool_window))
+    for tt in obj.tooltypes:
+        attrs.append(("tooltypes", tt))
+    if obj.drawer_data:
+        dd = obj.drawer_data
+        attrs.extend(
+            [
+                ("dd_left_edge", dd.left_edge),
+                ("dd_top_edge", dd.top_edge),
+                ("dd_width", dd.width),
+                ("dd_height", dd.height),
+                ("dd_flags", dd.flags),
+                ("dd_view_modes", dd.view_modes),
+                ("dd_current_x", dd.current_x),
+                ("dd_current_y", dd.current_y),
+            ]
+        )
+
+    for name, value in attrs:
+        tag = _ICON_TAG[name]
+        parts.append(struct.pack(">I", tag))
+        if name in _ICON_STRING_TAGS:
+            parts.append(str(value).encode("latin-1") + b"\x00")
+        else:
+            parts.append(struct.pack(">I", value))
+
+    return b"".join(parts)
+
+
+def _strip_icon_chunk(png_data: bytes) -> tuple[bytes, int]:
+    """Remove any existing icOn chunk from PNG data.
+
+    Returns (cleaned_png, iend_offset) where iend_offset is the offset
+    of the IEND chunk in the cleaned data.
+    """
+    parts: list[bytes] = []
+    parts.append(png_data[:8])  # PNG signature
+    pos = 8
+    iend_offset = 0
+    while pos + 8 <= len(png_data):
+        chunk_len = struct.unpack_from(">I", png_data, pos)[0]
+        chunk_end = pos + 8 + chunk_len + 4  # header(8) + data + CRC(4)
+        chunk_type = png_data[pos + 4 : pos + 8]
+        if chunk_type == b"icOn":
+            pos = chunk_end
+            continue
+        if chunk_type == b"IEND":
+            iend_offset = len(b"".join(parts))
+            parts.append(png_data[pos:chunk_end])
+            break
+        parts.append(png_data[pos:chunk_end])
+        pos = chunk_end
+    return b"".join(parts), iend_offset
+
+
+def _make_png_chunk(chunk_type: bytes, data: bytes) -> bytes:
+    """Build a PNG chunk with type, data, and CRC."""
+    raw = chunk_type + data
+    crc = zlib.crc32(raw) & 0xFFFFFFFF
+    return struct.pack(">I", len(data)) + raw + struct.pack(">I", crc)
+
+
+def _save_png_icon(obj: DiskObject) -> bytes:
+    """Save an OS4 PNG icon (two concatenated PNGs with icOn metadata)."""
+    png = obj.png
+    normal, iend_offset = _strip_icon_chunk(png.normal)
+    icon_chunk = _make_png_chunk(b"icOn", _build_icon_chunk(obj))
+
+    # Insert icOn chunk before IEND
+    result = normal[:iend_offset] + icon_chunk + normal[iend_offset:]
+
+    if png.selected:
+        result += png.selected
+
     return result
