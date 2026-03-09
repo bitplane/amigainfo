@@ -185,27 +185,31 @@ def _encode_newicon_image(img: NewIconImage) -> list[str]:
     while (1 << bit_depth) < num_colors:
         bit_depth += 1
 
-    # Encode palette + pixel data as one continuous bitstream.
-    # The decoder concatenates all lines into a single bitstream, so we must not
-    # introduce padding bits between palette and pixels or between lines.
-    all_bits: list[int] = []
+    # First line: palette only (each line's bits are independent).
+    pal_bits: list[int] = []
     for r, g, b in img.palette:
         for val in (r, g, b):
             for i in range(7, -1, -1):
-                all_bits.append((val >> i) & 1)
-    for px in img.pixel_data:
-        for i in range(bit_depth - 1, -1, -1):
-            all_bits.append((px >> i) & 1)
+                pal_bits.append((val >> i) & 1)
 
-    all_chars = _newicon_encode_bits(all_bits)
     header = transparent_char + width_char + height_char + colors_hi + colors_lo
+    lines = [header + _newicon_encode_bits(pal_bits)]
 
-    lines = []
-    max_data = 128 - len(header)
-    lines.append(header + all_chars[:max_data])
-    remaining = all_chars[max_data:]
-    for i in range(0, len(remaining), 128):
-        lines.append(remaining[i : i + 128])
+    # Subsequent lines: pixel data, encoded per-line.
+    # Each line is decoded independently and leftover bits are discarded,
+    # so we must ensure each line contains only whole pixels.
+    max_chars = 128
+    max_bits = max_chars * 7
+    pixels_per_line = max_bits // bit_depth
+    px_offset = 0
+    while px_offset < len(img.pixel_data):
+        chunk = img.pixel_data[px_offset : px_offset + pixels_per_line]
+        px_offset += len(chunk)
+        line_bits: list[int] = []
+        for px in chunk:
+            for i in range(bit_depth - 1, -1, -1):
+                line_bits.append((px >> i) & 1)
+        lines.append(_newicon_encode_bits(line_bits))
 
     return lines
 

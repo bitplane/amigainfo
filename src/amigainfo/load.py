@@ -327,11 +327,11 @@ def _newicon_decode_bits(line: str) -> list[int]:
         byte = ord(ch)
         if byte < 0x20:
             continue
-        if byte <= 0x6F:
+        if byte <= 0x9F:
             val = byte - 0x20
             for i in range(6, -1, -1):
                 bits.append((val >> i) & 1)
-        elif 0xA1 <= byte <= 0xD0:
+        elif byte <= 0xD0:
             val = byte - 0x51
             for i in range(6, -1, -1):
                 bits.append((val >> i) & 1)
@@ -366,31 +366,29 @@ def _decode_newicon_image(lines: list[str]) -> NewIconImage:
     while (1 << bit_depth) < num_colors:
         bit_depth += 1
 
-    # Decode all lines into one continuous bitstream (palette then pixels)
-    all_bits: list[int] = []
-    all_bits.extend(_newicon_decode_bits(first_line[5:]))
-    for line in lines[1:]:
-        all_bits.extend(_newicon_decode_bits(line))
-
+    # First line: extract palette only, discard remaining bits
+    first_bits = _newicon_decode_bits(first_line[5:])
     bit_pos = 0
 
-    # Read palette (num_colors * 24 bits)
     palette: list[tuple[int, int, int]] = []
     for _ in range(num_colors):
-        if bit_pos + 24 > len(all_bits):
+        if bit_pos + 24 > len(first_bits):
             break
-        r = _bits_to_int(all_bits, bit_pos, 8)
-        g = _bits_to_int(all_bits, bit_pos + 8, 8)
-        b = _bits_to_int(all_bits, bit_pos + 16, 8)
+        r = _bits_to_int(first_bits, bit_pos, 8)
+        g = _bits_to_int(first_bits, bit_pos + 8, 8)
+        b = _bits_to_int(first_bits, bit_pos + 16, 8)
         palette.append((r, g, b))
         bit_pos += 24
 
-    # Read pixel data from remaining bits
+    # Subsequent lines: extract pixels per-line, discard leftover bits
     total_pixels = width * height
     pixels: list[int] = []
-    while (bit_pos + bit_depth <= len(all_bits)) and (len(pixels) < total_pixels):
-        pixels.append(_bits_to_int(all_bits, bit_pos, bit_depth))
-        bit_pos += bit_depth
+    for line in lines[1:]:
+        line_bits = _newicon_decode_bits(line)
+        lbp = 0
+        while (lbp + bit_depth <= len(line_bits)) and (len(pixels) < total_pixels):
+            pixels.append(_bits_to_int(line_bits, lbp, bit_depth))
+            lbp += bit_depth
 
     return NewIconImage(
         width=width,
