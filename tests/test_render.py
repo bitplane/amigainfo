@@ -95,24 +95,26 @@ def test_newicon_transparency():
 # --- Classic rendering ---
 
 
-def test_classic_renders_rgb():
+def test_classic_renders_rgba():
     obj = load_file("OS1.3/Disk.info")
     img = classic_to_image(obj.classic.normal)
-    assert img.mode == "RGB"
+    assert img.mode == "RGBA"
     assert img.size == (35, 16)
+    # Background color (index at 0,0) should be transparent
+    alpha = img.split()[3]
+    assert 0 in list(alpha.tobytes())
 
 
 def test_classic_wb1x_palette():
     obj = load_file("OS1.3/Disk.info")
     img = classic_to_image(obj.classic.normal, WB_1X)
-    # WB_1X color 0 is blue (85, 170, 255)
-    assert img.mode == "RGB"
+    assert img.mode == "RGBA"
 
 
 def test_classic_wb2x_palette():
     obj = load_file("MUI/Disk.info")
     img = classic_to_image(obj.classic.normal, WB_2X)
-    assert img.mode == "RGB"
+    assert img.mode == "RGBA"
     assert img.size == (44, 23)
 
 
@@ -155,7 +157,7 @@ def test_to_image_falls_back_to_classic():
     assert obj.coloricon is None
     assert obj.newicon is None
     img = to_image(obj)
-    assert img.mode == "RGB"
+    assert img.mode == "RGBA"
 
 
 def test_to_image_selected_fallback():

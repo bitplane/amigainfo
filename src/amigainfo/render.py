@@ -117,7 +117,9 @@ def classic_to_image(
     img: ClassicImage,
     palette: tuple[tuple[int, int, int], ...] | None = None,
 ) -> Image.Image:
-    """Render a classic planar image to a Pillow RGB Image.
+    """Render a classic planar image to a Pillow RGBA Image.
+
+    Palette index 0 is treated as transparent.
 
     Args:
         img: A ClassicImage with planar bitmap data.
@@ -132,7 +134,7 @@ def classic_to_image(
     words_per_row = (width + 15) // 16
     bytes_per_row = words_per_row * 2
 
-    pixels = bytearray(width * height * 3)
+    pixels = bytearray(width * height * 4)
 
     for y in range(height):
         for x in range(width):
@@ -142,7 +144,6 @@ def classic_to_image(
             color_index = 0
             for plane_num in range(header.depth):
                 if header.plane_pick & (1 << plane_num):
-                    # This plane has data
                     plane_idx = bin(header.plane_pick & ((1 << (plane_num + 1)) - 1)).count("1") - 1
                     if plane_idx < len(img.planes):
                         bit = (img.planes[plane_idx][byte_idx] >> bit_idx) & 1
@@ -150,14 +151,17 @@ def classic_to_image(
                 elif header.plane_on_off & (1 << plane_num):
                     color_index |= 1 << plane_num
 
-            if color_index < len(palette):
+            offset = (y * width + x) * 4
+
+            if color_index == 0:
+                pixels[offset : offset + 4] = b"\x00\x00\x00\x00"
+            elif color_index < len(palette):
                 r, g, b = palette[color_index]
+                pixels[offset] = r
+                pixels[offset + 1] = g
+                pixels[offset + 2] = b
+                pixels[offset + 3] = 255
             else:
-                r, g, b = 0, 0, 0
+                pixels[offset : offset + 4] = b"\x00\x00\x00\xff"
 
-            offset = (y * width + x) * 3
-            pixels[offset] = r
-            pixels[offset + 1] = g
-            pixels[offset + 2] = b
-
-    return Image.frombytes("RGB", (width, height), bytes(pixels))
+    return Image.frombytes("RGBA", (width, height), bytes(pixels))
