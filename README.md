@@ -136,6 +136,12 @@ palette. Two palettes are included:
 The default is `WB_2X`. The `to_image()` function auto-selects based on
 `gadget.user_data` (OS 2.x+ icons set this to 1).
 
+## Links
+
+* [🏠 home](https://bitplane.net/dev/python/amigainfo)
+* [🐍 pypi](https://pypi.org/project/amigainfo)
+* [🐱 github](https://github.com/bitplane/amigainfo)
+
 ## License
 
-Public domain (WTFPL).
+WTFPL: do whatever you want, but don't blame me if it unplumps your gf's pillow.

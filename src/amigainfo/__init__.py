@@ -18,6 +18,7 @@ from .models import (
     PNGImages,
 )
 from .palettes import DEFAULT, WB_1X, WB_2X
+from .pillow_plugin import WBInfoFile  # noqa: F401 — triggers plugin registration
 from .render import (
     argb_to_image,
     classic_to_image,
