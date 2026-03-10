@@ -1,7 +1,7 @@
 [project]
 name = "amigainfo"
 description = "Load, save and export Amiga .info files"
-version = "0.5.0"
+version = "0.6.0"
 authors = [
     { name = "Gareth Davidson", email = "gaz@bitplane.net" }
 ]
