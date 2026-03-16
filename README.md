@@ -2,13 +2,21 @@
 
 A Python library for loading, saving and converting Amiga `.info` icon files.
 
-Supports all five generations of the format:
+Supports five generations of the format:
 
 * 🗺️ **Classic** (OS 1.x-3.1) — planar bitmap icons
 * 🖼️ **NewIcons** — higher colour icons encoded in ToolTypes strings
 * 🪟 **GlowIcons / ColorIcons** (OS 3.5+) — IFF FORM ICON with RLE compression
 * 📷 **ARGB** (OS4) — 32-bit icons with zlib-compressed ARGB data
-* 🖼️ **PNG** (OS4) — two concatenated PNG files with metadata in an `icOn` chunk
+* 🖼️ **PowerIcons** (OS4) — two concatenated PNG files with metadata in an `icOn` chunk
+
+## Links
+
+* [🏠 home](https://bitplane.net/dev/python/amigainfo)
+* [💬 blog post](https://bitplane.net/log/2026/03/amigainfo)
+* [📚 pydoc](https://bitplane.net/dev/python/amigainfo/pydoc)
+* [🐍 pypi](https://pypi.org/project/amigainfo)
+* [🐱 github](https://github.com/bitplane/amigainfo)
 
 ## Install
 
@@ -119,14 +127,14 @@ tool), and planar bitmap image data. Later formats append additional image data:
 | NewIcons | Mid-90s | Chunky pixels encoded in ToolTypes | Embedded in data |
 | GlowIcons | OS 3.5+ | RLE-compressed indexed colour (IFF) | Embedded in data |
 | ARGB | OS 4 | zlib-compressed 32-bit ARGB | Full colour |
-| PNG | OS 4 | Two concatenated PNGs | Full colour |
+| PowerIcons | OS 4 | Two concatenated PNGs | Full colour |
 
-OS4 PNG icons are a separate format — the file starts with PNG magic (`0x89504E47`)
+PowerIconss icons are a separate format — the file starts with PNG magic (`0x89504E47`)
 instead of `0xE310`. Two complete PNG images are concatenated back-to-back
-(normal + selected state), and icon metadata is stored in a custom `icOn` PNG chunk
-in the first image.
+(normal + selected state), and icon metadata is stored in a custom `icOn` PNG
+chunk in the first image.
 
-Each file can contain up to two images: normal and selected (highlighted) states.
+Each file can contain up to two images: normal and selected states.
 
 ## Data model
 
@@ -157,12 +165,6 @@ palette. Two palettes are included:
 
 The default is `WB_2X`. The `to_image()` function auto-selects based on
 `gadget.user_data` (OS 2.x+ icons set this to 1).
-
-## Links
-
-* [🏠 home](https://bitplane.net/dev/python/amigainfo)
-* [🐍 pypi](https://pypi.org/project/amigainfo)
-* [🐱 github](https://github.com/bitplane/amigainfo)
 
 ## License
 
