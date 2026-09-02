@@ -25,7 +25,7 @@ def loaded_icon(request):
 
 
 def test_loads_without_error(loaded_icon):
-    obj, path = loaded_icon
+    obj, _path = loaded_icon
     assert obj.magic in (0xE310, 0x89504E47)
 
 
@@ -239,3 +239,9 @@ def test_png_icon_no_classic():
 def test_invalid_magic():
     with pytest.raises(ValueError, match="Not an Amiga .info file"):
         load(b"\x00\x00\x00\x00" * 20)
+
+
+@pytest.mark.parametrize("data", [b"", b"\xe3\x10", b"\x89PNG"])
+def test_truncated_header_raises_value_error(data):
+    with pytest.raises(ValueError, match="Truncated or malformed"):
+        load(data)

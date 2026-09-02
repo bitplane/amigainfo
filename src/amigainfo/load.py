@@ -41,6 +41,14 @@ def load(data: bytes | bytearray) -> DiskObject:
     Raises:
         ValueError: If the file doesn't start with the expected magic number.
     """
+    try:
+        return _load(data)
+    except (IndexError, struct.error) as error:
+        raise ValueError("Truncated or malformed Amiga .info file") from error
+
+
+def _load(data: bytes | bytearray) -> DiskObject:
+    """Parse data after normalizing low-level bounds errors in :func:`load`."""
     if len(data) >= 4 and data[:4] == b"\x89PNG":
         return _load_png_icon(data)
 
@@ -100,12 +108,11 @@ def load(data: bytes | bytearray) -> DiskObject:
         tool_window, pos = _read_text(data, pos)
 
     # DrawerData2 (OS 2.x+)
-    if has_drawer_data and (gadget.user_data & 0xFF):
-        if drawer_data and pos + 6 <= len(data):
-            drawer_data.flags = struct.unpack_from(">I", data, pos)[0]
-            pos += 4
-            drawer_data.view_modes = struct.unpack_from(">H", data, pos)[0]
-            pos += 2
+    if has_drawer_data and (gadget.user_data & 0xFF) and drawer_data and pos + 6 <= len(data):
+        drawer_data.flags = struct.unpack_from(">I", data, pos)[0]
+        pos += 4
+        drawer_data.view_modes = struct.unpack_from(">H", data, pos)[0]
+        pos += 2
 
     # NewIcons (from ToolTypes)
     newicon = _read_newicons(tooltypes)
@@ -154,7 +161,7 @@ def _read_gadget(data: memoryview, pos: int) -> tuple[Gadget, int]:
         _gadget_text,
         _mutual_exclude,
         _special_info,
-        gadget_id,
+        _gadget_id,
         user_data,
     ) = struct.unpack_from(">IhhhhHHHIIIiIHI", data, pos)
 
