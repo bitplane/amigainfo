@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import struct
 import zlib
+from dataclasses import replace
 
 from .models import (
     ARGBImages,
@@ -43,7 +44,14 @@ def save(obj: DiskObject) -> bytes:
     has_drawer_data = 1 if obj.drawer_data is not None else 0
     has_tool_window = 1 if obj.tool_window is not None else 0
 
-    gadget = obj.gadget
+    # The on-disk pointer values are presence flags for the serialized images.
+    # Keep a loaded icon's original non-zero values, but synchronize them when
+    # callers add or remove images through the dataclass API.
+    gadget = replace(
+        obj.gadget,
+        gadget_render=(obj.gadget.gadget_render or 1) if obj.classic else 0,
+        select_render=(obj.gadget.select_render or 1) if obj.classic and obj.classic.selected else 0,
+    )
 
     parts.append(struct.pack(">HH", obj.magic, obj.version))
     parts.append(_write_gadget(gadget))

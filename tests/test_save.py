@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from amigainfo import DiskObject, Gadget, IconType, load, save
+from amigainfo import ClassicImage, ClassicImages, DiskObject, Gadget, IconType, ImageHeader, load, save
 
 TEST_ICONS = Path(__file__).resolve().parent / "test-icons"
 
@@ -58,6 +58,35 @@ def test_save_minimal():
     assert reloaded.type == IconType.TOOL
     assert reloaded.gadget.width == 32
     assert reloaded.gadget.height == 32
+
+
+def test_save_constructed_classic_image_sets_presence_flags():
+    image = ClassicImage(
+        header=ImageHeader(width=1, height=1, depth=1, plane_pick=1),
+        planes=[b"\x80\x00"],
+    )
+    obj = DiskObject(
+        type=IconType.TOOL,
+        gadget=Gadget(width=1, height=1),
+        classic=ClassicImages(normal=image, selected=image),
+    )
+
+    reloaded = load(save(obj))
+
+    assert reloaded.classic == obj.classic
+    assert reloaded.gadget.gadget_render != 0
+    assert reloaded.gadget.select_render != 0
+
+
+def test_save_removed_classic_image_clears_presence_flags():
+    obj = load((TEST_ICONS / "OS1.3/Prefs.info").read_bytes())
+    obj.classic = None
+
+    reloaded = load(save(obj))
+
+    assert reloaded.classic is None
+    assert reloaded.gadget.gadget_render == 0
+    assert reloaded.gadget.select_render == 0
 
 
 def test_save_with_newicon():
