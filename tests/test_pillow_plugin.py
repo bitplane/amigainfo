@@ -5,7 +5,7 @@ from PIL import Image
 
 import amigainfo
 from amigainfo.models import DiskObject
-from amigainfo.pillow_plugin import _accept
+from amigainfo.pillow_plugin import WBInfoFile, _accept
 
 TEST_ICONS = Path(__file__).resolve().parent / "test-icons"
 
@@ -66,12 +66,30 @@ def test_disk_object_in_info():
 
 def test_accept_rejects_non_icon():
     assert not _accept(b"\x00\x00\x00\x00")
-    assert not _accept(b"\x89PNG")
     assert not _accept(b"")
 
 
 def test_accept_matches_icon():
     assert _accept(b"\xe3\x10\x00\x01")
+    assert _accept(b"\x89PNG\r\n\x1a\n")
+
+
+def test_powericon_uses_plugin_with_metadata_and_selected_frame():
+    img = Image.open(TEST_ICONS / "PNG" / "def_DF0.info")
+
+    assert isinstance(img, WBInfoFile)
+    assert img.n_frames == 2
+    assert isinstance(img.info["disk_object"], DiskObject)
+
+
+def test_regular_png_still_uses_pillow_png_plugin(tmp_path):
+    path = tmp_path / "regular.png"
+    Image.new("RGB", (1, 1)).save(path)
+
+    img = Image.open(path)
+
+    assert img.format == "PNG"
+    assert not isinstance(img, WBInfoFile)
 
 
 def test_extension_registered():
