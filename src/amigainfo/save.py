@@ -273,7 +273,9 @@ def _write_form_icon(coloricon: ColorIconImages | None, argb: ARGBImages | None)
 
 def _write_imag_chunk(img: ColorIconImage) -> bytes:
     """Write a single IMAG chunk (uncompressed format=0)."""
-    pixel_data = img.pixel_data
+    pixel_data = bytes(img.pixel_data)
+    if not 1 <= len(pixel_data) <= 65536:
+        raise ValueError("ColorIcon pixel data must contain between 1 and 65536 bytes")
     palette_data = b""
     flags = 0
     if img.has_transparent:

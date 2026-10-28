@@ -151,3 +151,29 @@ def test_png_rejects_truncated_attribute(attribute):
 
     with pytest.raises(ValueError, match="Truncated or malformed"):
         load(data)
+
+
+@pytest.mark.parametrize("pixel_type", [list, bytes])
+def test_save_constructed_coloricon(pixel_type):
+    from amigainfo import ColorIconImage, ColorIconImages, FaceChunk, to_image
+
+    pixels = pixel_type([0, 1, 2, 3])
+    palette = [(0, 0, 0), (255, 0, 0), (0, 255, 0), (0, 0, 255)]
+    image = ColorIconImage(width=2, height=2, depth=2, palette=palette, pixel_data=pixels)
+    obj = DiskObject(coloricon=ColorIconImages(face=FaceChunk(width=2, height=2, max_palette_bytes=12), normal=image))
+
+    reloaded = load(save(obj))
+
+    assert list(reloaded.coloricon.normal.pixel_data) == [0, 1, 2, 3]
+    assert reloaded.coloricon.normal.palette == palette
+    assert to_image(reloaded).tobytes() == to_image(obj).tobytes()
+    assert image.pixel_data is pixels
+
+
+@pytest.mark.parametrize("size", [0, 65537])
+def test_save_coloricon_rejects_unrepresentable_pixel_count(size):
+    from amigainfo import ColorIconImage
+    from amigainfo.save import _write_imag_chunk
+
+    with pytest.raises(ValueError, match="pixel data"):
+        _write_imag_chunk(ColorIconImage(pixel_data=[0] * size))
