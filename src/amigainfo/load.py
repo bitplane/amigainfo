@@ -591,11 +591,22 @@ def _read_argb_chunk(data: memoryview, pos: int, chunk_size: int, width: int, he
     if chunk_size <= header_size:
         return None
 
+    # FACE dimensions are stored as one-byte values minus one. Bound both
+    # dimensions even when they came from a legacy Gadget/Image header.
+    if not (1 <= width <= 256 and 1 <= height <= 256):
+        return None
+
     compressed = bytes(data[pos + header_size : pos + chunk_size])
 
+    expected_size = width * height * 4
+    decompressor = zlib.decompressobj()
     try:
-        raw = zlib.decompress(compressed)
+        # One extra byte lets us detect oversized data without expanding it.
+        raw = decompressor.decompress(compressed, expected_size + 1)
     except zlib.error:
+        return None
+
+    if not decompressor.eof or len(raw) != expected_size:
         return None
 
     return ARGBImage(width=width, height=height, data=raw)

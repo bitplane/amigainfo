@@ -1,3 +1,4 @@
+import zlib
 from pathlib import Path
 
 import pytest
@@ -245,3 +246,60 @@ def test_invalid_magic():
 def test_truncated_header_raises_value_error(data):
     with pytest.raises(ValueError, match="Truncated or malformed"):
         load(data)
+
+
+@pytest.mark.parametrize("raw_size", [0, 3, 5, 1024 * 1024])
+def test_argb_rejects_wrong_decompressed_size(raw_size):
+    from amigainfo.load import _read_argb_chunk
+
+    chunk = b"\x00" * 10 + zlib.compress(b"\x00" * raw_size)
+    image = _read_argb_chunk(memoryview(chunk), 0, len(chunk), 1, 1)
+    assert image is None
+
+
+def test_argb_rejects_incomplete_zlib_stream():
+    from amigainfo.load import _read_argb_chunk
+
+    chunk = b"\x00" * 10 + zlib.compress(b"\xff\x12\x34\x56")[:-1]
+    assert _read_argb_chunk(memoryview(chunk), 0, len(chunk), 1, 1) is None
+
+
+@pytest.mark.parametrize("size", [(0, 1), (1, 0), (-1, 1), (-1, -1), (257, 1), (1, 257)])
+def test_argb_rejects_invalid_dimensions(size):
+    from amigainfo.load import _read_argb_chunk
+
+    chunk = b"\x00" * 10 + zlib.compress(b"\xff\x12\x34\x56")
+    assert _read_argb_chunk(memoryview(chunk), 0, len(chunk), *size) is None
+
+
+def test_argb_decompression_is_bounded(monkeypatch):
+    from amigainfo.load import _read_argb_chunk
+
+    decompressor = zlib.decompressobj()
+    limits = []
+
+    class RecordingDecompressor:
+        def decompress(self, data, max_length=0):
+            limits.append(max_length)
+            return decompressor.decompress(data, max_length)
+
+        @property
+        def eof(self):
+            return decompressor.eof
+
+    monkeypatch.setattr(zlib, "decompressobj", RecordingDecompressor)
+    chunk = b"\x00" * 10 + zlib.compress(b"\x00" * (1024 * 1024))
+
+    assert _read_argb_chunk(memoryview(chunk), 0, len(chunk), 1, 1) is None
+    assert limits == [5]
+
+
+@pytest.mark.parametrize("size", [(1, 1), (256, 256)])
+def test_argb_accepts_exact_pixel_data(size):
+    from amigainfo.load import _read_argb_chunk
+
+    raw = b"\xff\x12\x34\x56" * (size[0] * size[1])
+    chunk = b"\x00" * 10 + zlib.compress(raw)
+    image = _read_argb_chunk(memoryview(chunk), 0, len(chunk), *size)
+    assert image is not None
+    assert image.data == raw
