@@ -640,14 +640,16 @@ def _parse_icon_chunk(chunk_data: bytes) -> dict:
     """Parse attribute tags from an icOn PNG chunk."""
     attrs: dict = {}
     pos = 0
-    while pos + 8 <= len(chunk_data):
+    while pos + 4 <= len(chunk_data):
         tag = struct.unpack_from(">I", chunk_data, pos)[0]
         pos += 4
         name = _ICON_ATTR.get(tag)
         if name is None:
             break
         if name in _ICON_STRING_ATTRS:
-            end = chunk_data.index(b"\x00", pos)
+            end = chunk_data.find(b"\x00", pos)
+            if end < 0:
+                raise ValueError("Truncated or malformed Amiga .info file: unterminated PNG icon attribute")
             value = chunk_data[pos:end].decode("latin-1")
             pos = end + 1
             if name == "tooltypes":

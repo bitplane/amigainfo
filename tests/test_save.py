@@ -128,3 +128,26 @@ def test_save_preserves_tooltypes():
     reloaded = load(saved)
     reloaded_user = [tt for tt in reloaded.tooltypes if not tt.startswith(("IM1=", "IM2="))]
     assert reloaded_user == user_tooltypes
+
+
+@pytest.mark.parametrize("field", ["default_tool", "tool_window", "tooltypes"])
+@pytest.mark.parametrize("value", ["", "x", "ab", "abc"])
+def test_png_preserves_short_final_string(field, value):
+    png = load((TEST_ICONS / "PNG/def_DF0.info").read_bytes()).png
+    expected = ["A=1", value] if field == "tooltypes" else value
+    obj = DiskObject(png=png, **{field: expected})
+
+    reloaded = load(save(obj))
+
+    assert getattr(reloaded, field) == expected
+
+
+@pytest.mark.parametrize("attribute", [b"\x80\x00\x10\x01\x00", b"\x80\x00\x10\x0aab"])
+def test_png_rejects_truncated_attribute(attribute):
+    from amigainfo.save import _make_png_chunk
+
+    png = load((TEST_ICONS / "PNG/def_DF0.info").read_bytes()).png.normal
+    data = png[:-12] + _make_png_chunk(b"icOn", attribute) + png[-12:]
+
+    with pytest.raises(ValueError, match="Truncated or malformed"):
+        load(data)
