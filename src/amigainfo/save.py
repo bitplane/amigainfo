@@ -13,6 +13,7 @@ from .models import (
     ColorIconImages,
     DiskObject,
     DrawerData,
+    FaceChunk,
     Gadget,
     NewIconImage,
     NewIconImages,
@@ -246,9 +247,19 @@ def _write_form_icon(coloricon: ColorIconImages | None, argb: ARGBImages | None)
     """Write the FORM ICON IFF structure."""
     body = b""
 
-    if coloricon:
-        # FACE chunk
-        face = coloricon.face
+    face = coloricon.face if coloricon else None
+    if face is None and argb:
+        face = FaceChunk(width=argb.normal.width, height=argb.normal.height, max_palette_bytes=1)
+
+    if face:
+        if not (1 <= face.width <= 256 and 1 <= face.height <= 256):
+            raise ValueError("FACE dimensions must be between 1 and 256")
+        if argb:
+            for image in (argb.normal, argb.selected):
+                if image and (image.width, image.height) != (face.width, face.height):
+                    raise ValueError("ARGB image dimensions must match the shared FACE dimensions")
+
+        # Both IMAG and ARGB chunks use the dimensions from FACE.
         aspect = ((face.aspect_x & 0x0F) << 4) | (face.aspect_y & 0x0F)
         face_data = struct.pack(
             ">BBBBH", face.width - 1, face.height - 1, face.flags, aspect, face.max_palette_bytes - 1
@@ -258,6 +269,7 @@ def _write_form_icon(coloricon: ColorIconImages | None, argb: ARGBImages | None)
         if len(face_data) % 2:
             body += b"\x00"
 
+    if coloricon:
         # IMAG chunks
         body += _write_imag_chunk(coloricon.normal)
         if coloricon.selected:

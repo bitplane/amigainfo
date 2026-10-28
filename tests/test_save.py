@@ -177,3 +177,63 @@ def test_save_coloricon_rejects_unrepresentable_pixel_count(size):
 
     with pytest.raises(ValueError, match="pixel data"):
         _write_imag_chunk(ColorIconImage(pixel_data=[0] * size))
+
+
+@pytest.mark.parametrize("gadget_size", [0, 10])
+@pytest.mark.parametrize("with_classic", [False, True])
+def test_save_argb_without_coloricon_preserves_dimensions(gadget_size, with_classic):
+    from amigainfo import ARGBImage, ARGBImages, to_image
+
+    normal = ARGBImage(width=2, height=3, data=b"\xff\x12\x34\x56" * 6)
+    selected = ARGBImage(width=2, height=3, data=b"\x80\x65\x43\x21" * 6)
+    obj = DiskObject(
+        gadget=Gadget(width=gadget_size, height=gadget_size),
+        argb=ARGBImages(normal=normal, selected=selected),
+    )
+    if with_classic:
+        obj.classic = ClassicImages(
+            normal=ClassicImage(header=ImageHeader(width=1, height=1, depth=1, plane_pick=1), planes=[b"\x80\x00"])
+        )
+
+    reloaded = load(save(obj))
+
+    assert reloaded.argb == obj.argb
+    assert reloaded.coloricon is None
+    assert reloaded.classic == obj.classic
+    assert reloaded.gadget.width == gadget_size
+    assert reloaded.gadget.height == gadget_size
+    for state in (False, True):
+        assert to_image(reloaded, selected=state).size == (2, 3)
+        assert to_image(reloaded, selected=state).tobytes() == to_image(obj, selected=state).tobytes()
+
+
+@pytest.mark.parametrize("size", [(1, 1), (256, 256)])
+def test_save_argb_face_dimension_boundaries(size):
+    from amigainfo import ARGBImage, ARGBImages
+
+    image = ARGBImage(width=size[0], height=size[1], data=b"\xff\x12\x34\x56" * (size[0] * size[1]))
+    obj = DiskObject(argb=ARGBImages(normal=image))
+
+    assert load(save(obj)).argb == obj.argb
+
+
+@pytest.mark.parametrize("size", [(0, 1), (1, 0), (257, 1), (1, 257)])
+def test_save_argb_rejects_unrepresentable_dimensions(size):
+    from amigainfo import ARGBImage, ARGBImages
+
+    obj = DiskObject(argb=ARGBImages(normal=ARGBImage(width=size[0], height=size[1])))
+    with pytest.raises(ValueError, match="dimensions"):
+        save(obj)
+
+
+def test_save_argb_rejects_mismatched_selected_dimensions():
+    from amigainfo import ARGBImage, ARGBImages
+
+    obj = DiskObject(
+        argb=ARGBImages(
+            normal=ARGBImage(width=1, height=1, data=b"\xff" * 4),
+            selected=ARGBImage(width=2, height=1, data=b"\xff" * 8),
+        )
+    )
+    with pytest.raises(ValueError, match="dimensions"):
+        save(obj)
